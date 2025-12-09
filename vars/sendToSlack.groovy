@@ -1,7 +1,5 @@
 #!/usr/bin/env groovy
 
-import static groovy.json.JsonOutput.toJson
-
 def call(Map config = [:]) {
     // 1. Determine Build Status and Previous Status
     def currentStatus = currentBuild.currentResult ?: 'SUCCESS'
@@ -45,65 +43,69 @@ def call(Map config = [:]) {
     def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
     def duration = currentBuild.durationString.replace(' and counting', '')
 
-    // 6. Build Block Kit JSON components
+// 6. Build Block Kit JSON components (Keys explicitly quoted)
     def headerText = "${icon} ${statusText}: ${jobName} #${buildNum}"
     def fallbackMessage = "${headerText} - ${buildUrl}"
     
-    // Construct Buttons
+// Construct Buttons
     def buttons = [
         [
-            type: "button",
-            text: [type: "plain_text", text: "View Build"],
-            url: buildUrl,
-            style: isFailure ? "danger" : "primary"
+            "type": "button",
+            "text": [
+                "type": "plain_text", 
+                "text": "View Build"
+            ],
+            "url": buildUrl,
+            "style": isFailure ? "danger" : "primary"
         ],
         [
-            type: "button",
-            text: [type: "plain_text", text: "Console"],
-            url: "${buildUrl}console"
+            "type": "button",
+            "text": [
+                "type": "plain_text", 
+                "text": "Console"
+            ],
+            "url": "${buildUrl}console"
         ]
     ]
 
     // Define Blocks
     def blocks = [
         [
-            type: "header",
-            text: [
-                type: "plain_text",
-                text: headerText,
-                emoji: true
+            "type": "header",
+            "text": [
+                "type": "plain_text",
+                "text": headerText,
+                "emoji": true
             ]
         ],
         [
-            type: "section",
-            fields: [
+            "type": "section",
+            "fields": [
                 [
-                    type: "mrkdwn",
-                    text: "*Branch:*\n${branch}"
+                    "type": "mrkdwn",
+                    "text": "*Branch:*\n${branch}"
                 ],
                 [
-                    type: "mrkdwn",
-                    text: "*Duration:*\n${duration}"
+                    "type": "mrkdwn",
+                    "text": "*Duration:*\n${duration}"
                 ]
             ]
         ],
         [
-            type: "divider"
+            "type": "divider"
         ],
         [
-            type: "actions",
-            elements: buttons
+            "type": "actions",
+            "elements": buttons
         ]
     ]
 
     // 7. Send Notification
     try {
-        def blocksJson = toJson(blocks)
-
         slackSend(
             color: color,
             message: fallbackMessage,
-            blocks: "${blocksJson}",
+            blocks: blocks,
             channel: channel,
             tokenCredentialId: token
         )
