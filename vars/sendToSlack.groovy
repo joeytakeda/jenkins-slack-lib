@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-import groovy.json.JsonOutput
+import static groovy.json.JsonOutput.toJson
 
 def call(Map config = [:]) {
     // 1. Determine Build Status and Previous Status
@@ -98,7 +98,7 @@ def call(Map config = [:]) {
 
     // 7. Send Notification
     try {
-        def blocksJson = JsonOutput.toJson(blocks)
+        def blocksJson = toJson(blocks)
 
         slackSend(
             color: color,
