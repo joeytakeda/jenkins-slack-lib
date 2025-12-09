@@ -103,7 +103,7 @@ def call(Map config = [:]) {
         slackSend(
             color: color,
             message: fallbackMessage,
-            blocks: blocksJson,
+            blocks: "${blocksJson}",
             channel: channel,
             tokenCredentialId: token
         )
