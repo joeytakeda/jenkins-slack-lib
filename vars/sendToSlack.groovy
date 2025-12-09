@@ -1,34 +1,113 @@
 #!/usr/bin/env groovy
 
-/**
- * Send notifications based on build status string
- * Derived from:
- * https://github.com/bitwiseman/jenkins-pipeline-shared/blob/master/vars/sendNotifications.groovy
- */
-def call(String buildStatus = 'STARTED') {
-  // build status of null means successful
-  buildStatus =  buildStatus ?: 'SUCCESSFUL'
- // Default values
-  def color = 'RED'
-  def colorCode = '#FF0000'
-  def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
-  def summary = "${subject} (${env.BUILD_URL})"
-  def details = """<p>${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
-    <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>"""
+import groovy.json.JsonOutput
 
-  // Override default values based on build status
-  if (buildStatus == 'CHANGED' || buildStatus == "SUCCESSFUL") {
-    color = 'GREEN'
-    colorCode = '#00FF00'
-   
-  } else if (buildStatus == 'UNSTABLE') {
-    color = 'YELLOW'
-    colorCode = '#FFFF00'
-  }
+def call(Map config = [:]) {
+    // 1. Determine Build Status and Previous Status
+    def currentStatus = currentBuild.currentResult ?: 'SUCCESS'
+    def previousStatus = currentBuild.previousBuild?.result
+    def isFailure = currentStatus == 'FAILURE'
+    def isUnstable = currentStatus == 'UNSTABLE'
+    def isRecovery = currentStatus == 'SUCCESS' && (previousStatus == 'FAILURE' || previousStatus == 'UNSTABLE')
 
+    // 2. Filter: Only notify on Failure, Unstable, or Recovery
+    if (!isFailure && !isUnstable && !isRecovery) {
+        echo "slackNotify: Build is ${currentStatus} (Previous: ${previousStatus}). No notification required."
+        return
+    }
 
-  if (buildStatus == 'STARTED' || buildStatus == 'SUCCESSFUL') {
-  } else {
-      slackSend (color: colorCode, message: summary)
-  }
+    // 3. Configuration Defaults
+    def channel = config.channel
+    def token = config.tokenCredentialId
+
+    // 4. Define Visuals based on Status
+    def colorMap = [
+        'FAILURE' : '#danger',
+        'UNSTABLE': '#warning',
+        'RECOVERY': '#good'
+    ]
+    
+    def iconMap = [
+        'FAILURE' : ':x:',
+        'UNSTABLE': ':warning:',
+        'RECOVERY': ':white_check_mark:'
+    ]
+
+    def statusKey = isRecovery ? 'RECOVERY' : currentStatus
+    def color = colorMap[statusKey]
+    def icon = iconMap[statusKey]
+    def statusText = isRecovery ? "Back to Normal" : currentStatus
+
+    // 5. Gather Metadata
+    def jobName = env.JOB_NAME
+    def buildNum = env.BUILD_NUMBER
+    def buildUrl = env.BUILD_URL
+    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
+    def duration = currentBuild.durationString.replace(' and counting', '')
+
+    // 6. Build Block Kit JSON components
+    def headerText = "${icon} ${statusText}: ${jobName} #${buildNum}"
+    def fallbackMessage = "${headerText} - ${buildUrl}"
+    
+    // Construct Buttons
+    def buttons = [
+        [
+            type: "button",
+            text: [type: "plain_text", text: "View Build"],
+            url: buildUrl,
+            style: isFailure ? "danger" : "primary"
+        ],
+        [
+            type: "button",
+            text: [type: "plain_text", text: "Console"],
+            url: "${buildUrl}console"
+        ]
+    ]
+
+    // Define Blocks
+    def blocks = [
+        [
+            type: "header",
+            text: [
+                type: "plain_text",
+                text: headerText,
+                emoji: true
+            ]
+        ],
+        [
+            type: "section",
+            fields: [
+                [
+                    type: "mrkdwn",
+                    text: "*Branch:*\n${branch}"
+                ],
+                [
+                    type: "mrkdwn",
+                    text: "*Duration:*\n${duration}"
+                ]
+            ]
+        ],
+        [
+            type: "divider"
+        ],
+        [
+            type: "actions",
+            elements: buttons
+        ]
+    ]
+
+    // 7. Send Notification
+    try {
+        def blocksJson = JsonOutput.toJson(blocks)
+
+        slackSend(
+            color: color,
+            message: fallbackMessage,
+            blocks: blocksJson,
+            channel: channel,
+            tokenCredentialId: token
+        )
+    } catch (Exception e) {
+        echo "slackNotify failed: ${e.message}"
+    }
 }
