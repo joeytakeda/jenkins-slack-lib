@@ -44,7 +44,7 @@ def call(Map config = [:]) {
     def duration = currentBuild.durationString.replace(' and counting', '')
 
 // 6. Build Block Kit JSON components (Keys explicitly quoted)
-    def headerText = "${icon} ${statusText}: ${jobName} #${buildNum}"
+    def headerText = "${icon} ${jobName} (Build #${buildNum}): ${statusText}"
     def fallbackMessage = "${headerText} - ${buildUrl}"
     
 // Construct Buttons
