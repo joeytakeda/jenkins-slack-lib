@@ -1,20 +1,19 @@
 #!/usr/bin/env groovy
 
 def call(Map config = [:]) {
-    // 1. Determine Build Status and Previous Status
+
     def currentStatus = currentBuild.currentResult ?: 'SUCCESS'
     def previousStatus = currentBuild.previousBuild?.result
     def isFailure = currentStatus == 'FAILURE'
     def isUnstable = currentStatus == 'UNSTABLE'
     def isRecovery = currentStatus == 'SUCCESS' && (previousStatus == 'FAILURE' || previousStatus == 'UNSTABLE')
 
-    // 2. Filter: Only notify on Failure, Unstable, or Recovery
     if (!isFailure && !isUnstable && !isRecovery) {
-        echo "slackNotify: Build is ${currentStatus} (Previous: ${previousStatus}). No notification required."
+        // echo "slackNotify: Build is ${currentStatus} (Previous: ${previousStatus}). No notification required."
         return
     }
 
-    // 3. Configuration Defaults
+    // Configuration Defaults
     def channel = config.channel
     def token = config.tokenCredentialId
 
@@ -36,38 +35,20 @@ def call(Map config = [:]) {
     def icon = iconMap[statusKey]
     def statusText = isRecovery ? "Back to Normal" : currentStatus
 
-    // 5. Gather Metadata
+
     def jobName = env.JOB_NAME
     def buildNum = env.BUILD_NUMBER
     def buildUrl = env.BUILD_URL
-    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
     def duration = currentBuild.durationString.replace(' and counting', '')
 
-// 6. Build Block Kit JSON components (Keys explicitly quoted)
+    // Build Block Kit JSON components (Keys explicitly quoted)
     def headerText = "${icon} ${jobName} (Build #${buildNum}): ${statusText}"
     def fallbackMessage = "${headerText} - ${buildUrl}"
     
-// Construct Buttons
-    def buttons = [
-        [
-            "type": "button",
-            "text": [
-                "type": "plain_text", 
-                "text": "View Build"
-            ],
-            "url": buildUrl,
-            "style": isFailure ? "danger" : "primary"
-        ],
-        [
-            "type": "button",
-            "text": [
-                "type": "plain_text", 
-                "text": "Console"
-            ],
-            "url": "${buildUrl}console"
-        ]
-    ]
-
+    def consoleLink = "<${buildUrl}console|Console Log>"
+    def buildLink = "<${buildUrl}|View Build>"
+    def linkText = ":link: ${buildLink} | ${consoleLink}"
+    
     // Define Blocks
     def blocks = [
         [
@@ -83,10 +64,6 @@ def call(Map config = [:]) {
             "fields": [
                 [
                     "type": "mrkdwn",
-                    "text": "*Branch:*\n${branch}"
-                ],
-                [
-                    "type": "mrkdwn",
                     "text": "*Duration:*\n${duration}"
                 ]
             ]
@@ -94,9 +71,13 @@ def call(Map config = [:]) {
         [
             "type": "divider"
         ],
+        
         [
-            "type": "actions",
-            "elements": buttons
+            "type": "section",
+            "text": [
+                "type": "mrkdwn",
+                "text": linkText
+            ]
         ]
     ]
 
