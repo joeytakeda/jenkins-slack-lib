@@ -47,7 +47,6 @@ def call(Map config = [:]) {
     
     def consoleLink = "<${buildUrl}console|Console Log>"
     def buildLink = "<${buildUrl}|View Build>"
-    def linkText = ":link: ${buildLink} | ${consoleLink}"
     
     // Define Blocks
     def blocks = [
@@ -62,23 +61,32 @@ def call(Map config = [:]) {
         [
             "type": "section",
             "fields": [
+
+                [
+                    "type": "mrkdwn",
+                    "text": consoleLink
+                ], 
+                [
+                    "type": "mrkdwn",
+                    "text": buildLink
+                ], 
                 [
                     "type": "mrkdwn",
                     "text": "*Duration:*\n${duration}"
                 ]
             ]
-        ],
-        [
-            "type": "divider"
-        ],
-        
-        [
-            "type": "section",
-            "text": [
-                "type": "mrkdwn",
-                "text": linkText
-            ]
         ]
+        // [
+        //     "type": "divider"
+        // ],
+
+        // [
+        //     "type": "section",
+        //     "text": [
+        //         "type": "mrkdwn",
+        //         "text": linkText
+        //     ]
+        // ]
     ]
 
     // 7. Send Notification
